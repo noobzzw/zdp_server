@@ -49,4 +49,4 @@ object DataSourceInfo {
 
 class InputDataSourceInfo(param:Map[String,Any], option:Map[String,Any] = Map.empty, var cols:Array[String], var filter:String) extends DataSourceInfo(param,option)
 
-class OutputDataSourceInfo(param:Map[String,Any], option:Map[String,Any] = Map.empty, var clear:String, var columns:Array[Map[String,String]]) extends DataSourceInfo(param,option)
+class OutputDataSourceInfo(param:Map[String,Any], option:Map[String,Any] = Map.empty, var clear:String, var columns:List[ColumnData]) extends DataSourceInfo(param,option)

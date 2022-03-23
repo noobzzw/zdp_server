@@ -26,8 +26,8 @@ trait HttpBaseHandler {
   val keepAliveUri = "/api/v1/zdh/keeplive"
   val killUri = "/api/v1/kill"
   // todo 记得要改为zdp
-  val etlUri = "api/v1/zdh"
-
+  val etlUri = "/api/v1/zdh/etl"
+  val sqlUri = "/api/v1/zdh/sql"
 
   /**
    * 返回默认 response

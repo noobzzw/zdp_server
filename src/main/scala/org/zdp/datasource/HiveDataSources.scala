@@ -1,5 +1,6 @@
 package org.zdp.datasource
 
+import com.alibaba.fastjson.JSON
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.{Column, DataFrame, SaveMode, SparkSession}
@@ -14,9 +15,8 @@ object HiveDataSources extends ZDPDataSources{
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   override def getSchema(spark: SparkSession, dataSourceInfo: DataSourceInfo)(implicit dispatch_task_id:String): Array[StructField] = {
-    val options = DataSourceInfo.getBaseOption(dataSourceInfo)
-    logger.info(s"获取hive表的schema信息table:${options.getOrElse("table","")},option:${options.mkString(",")}")
-    spark.table(options.getOrElse("table","")).schema.fields
+    logger.info(s"获取hive表的schema信息table:${dataSourceInfo.dbTable},option:${dataSourceInfo.option.mkString(",")}")
+    spark.table(dataSourceInfo.dbTable).schema.fields
   }
 
   override def getDS(spark: SparkSession, dispatchOption: Map[String, Any] = null,
@@ -25,11 +25,11 @@ object HiveDataSources extends ZDPDataSources{
                     (implicit dispatch_task_id: String = "-1"): DataFrame = {
     try {
       logger.info("[数据采集]:输入源为[HIVE]")
-      val tableName = inputDataSourceInfo.option.getOrElse("tableName","").toString
+      val tableName = inputDataSourceInfo.dbTable
       if (tableName.trim.equals("")) {
         throw new Exception("[zdh],hive数据源读取:tableName为空")
       }
-      logger.info("[数据采集]:[HIVE]:[READ]:[table]:"+tableName+"[FILTER]:"+inputDataSourceInfo.option)
+      logger.info("[数据采集]:[HIVE]:[READ]:[table]:"+tableName+"[FILTER]:"+inputDataSourceInfo.filter)
       val df = spark.table(tableName)
       filter(df,inputDataSourceInfo.filter,duplicateCols,selectColumn)
     } catch {
@@ -44,10 +44,10 @@ object HiveDataSources extends ZDPDataSources{
   override def writeDS(sparkSession: SparkSession, df:DataFrame, outputDataSourceInfo: OutputDataSourceInfo)
                       (implicit dispatch_task_id:String = "-1"): Unit = {
     try {
-      val options = outputDataSourceInfo.option.asInstanceOf[Map[String,String]]
+      val options = outputDataSourceInfo.option
       logger.info("[数据采集]:[HIVE]:[WRITE]:[options]:"+options.mkString(","))
       //默认是append
-      val model = options.getOrElse("model","").toLowerCase match {
+      val model = options.getOrElse("model","").toString.toLowerCase match {
         case "overwrite" => SaveMode.Overwrite
         case "append" => SaveMode.Append
         case "errorifexists" => SaveMode.ErrorIfExists
@@ -63,12 +63,11 @@ object HiveDataSources extends ZDPDataSources{
       var df_tmp = df
       //合并小文件操作
       if(!options.getOrElse("merge","-1").equals("-1")){
-        df_tmp = df.repartition(options.getOrElse("merge","200").toInt)
+        df_tmp = df.repartition(options.getOrElse("merge","200").toString.toInt)
       }
       val baseOption = DataSourceInfo.getBaseOption(outputDataSourceInfo)
       if (sparkSession.catalog.tableExists(tableName)) {
         val cols = sparkSession.table(tableName).columns
-        print("cols: " + cols)
         df_tmp.select(cols.map(col):_*)
           .write
           .mode(model)
@@ -99,10 +98,6 @@ object HiveDataSources extends ZDPDataSources{
         throw ex
       }
     }
-  }
-
-  def sqlProcess(): Unit = {
-
   }
 
 }

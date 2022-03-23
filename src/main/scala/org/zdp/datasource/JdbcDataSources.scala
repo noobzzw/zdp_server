@@ -35,6 +35,7 @@ object JdbcDataSources extends ZDPDataSources{
     try{
       logger.info("[数据采集]:输入源为[JDBC],开始匹配对应参数")
       checkBaseParams(inputDataSourceInfo)
+      logger.info("[数据采集]:[JDBC]:[READ]:表名:" + inputDataSourceInfo.dbTable + "," + inputDataSourceInfo.option.mkString(",") + " [FILTER]:" + inputDataSourceInfo.filter)
       //获取jdbc 配置
       val url = inputDataSourceInfo.url
       val dbtable = inputDataSourceInfo.dbTable
@@ -51,7 +52,7 @@ object JdbcDataSources extends ZDPDataSources{
       // 加载jdbc datasource
       val df: DataFrame = spark.read
         .format(format)
-        .options(inputDataSourceInfo.option.asInstanceOf[Map[String,String]])
+//        .options(inputDataSourceInfo.option.asInstanceOf[Map[String,String]])
         .options(DataSourceInfo.getBaseOption(inputDataSourceInfo))
         .load()
       filter(df,inputDataSourceInfo.filter,duplicateCols,selectColumn)
@@ -69,29 +70,12 @@ object JdbcDataSources extends ZDPDataSources{
    * JDBC连接时检测基本参数
    */
   private def checkBaseParams(inputDataSourceInfo: InputDataSourceInfo): Unit = {
-    val url: String = inputDataSourceInfo.url.toLowerCase()
-    if (url.trim.equals("")) {
-      throw new Exception("[ZDP],jdbc数据源读取:url为空")
+    val baseOptions = DataSourceInfo.getBaseOption(inputDataSourceInfo)
+    for (key <- baseOptions.keys) {
+      if (baseOptions(key).trim.equals("")) {
+        throw new Exception(s"[ZDP],jdbc数据源读取: ${key}为空!")
+      }
     }
-    val dbtable: String = inputDataSourceInfo.dbTable
-    if (dbtable.trim.equals("")) {
-      throw new Exception("[ZDP],jdbc数据源读取:dbtable为空")
-    }
-    val user: String = inputDataSourceInfo.username
-    if (user.trim.equals("")) {
-      logger.info("[ZDP],jdbc数据源读取:user为空")
-      //   throw new Exception("[ZDP],jdbc数据源读取:user为空")
-    }
-    val password: String = inputDataSourceInfo.password
-    if (password.trim.equals("")) {
-      logger.info("[ZDP],jdbc数据源读取:password为空")
-      //  throw new Exception("[ZDP],jdbc数据源读取:password为空")
-    }
-    val driver: String = inputDataSourceInfo.driver
-    if (driver.trim.equals("")) {
-      throw new Exception("[ZDP],jdbc数据源读取:Driver为空")
-    }
-    logger.info("[数据采集]:[JDBC]:[READ]:表名:" + dbtable + "," + inputDataSourceInfo.option.mkString(",") + " [FILTER]:" + inputDataSourceInfo.filter)
   }
 
   override def writeDS(sparkSession: SparkSession, df:DataFrame, outputDataSourceInfo: OutputDataSourceInfo)(implicit dispatch_task_id:String): Unit = {
@@ -119,7 +103,7 @@ object JdbcDataSources extends ZDPDataSources{
       df.write
         .format(format)
         .mode(SaveMode.Append)
-        .options(options)
+//        .options(options) // 暂时取消其他option，会导致空指针，估计是json哪个字段导致的
         .options(DataSourceInfo.getBaseOption(outputDataSourceInfo))
         .save()
     } catch {
@@ -141,6 +125,7 @@ object JdbcDataSources extends ZDPDataSources{
     * @param options
     * @param sql
     */
+  @Deprecated
   def deleteJDBC(spark: SparkSession, url: String, options:  Map[String,String], sql: String)(implicit dispatch_task_id:String): Unit = {
     logger.info("[数据采集]:[JDBC]:[CLEAR]:url:"+url+","+options.mkString(",")+",sql:"+sql)
     val properties = new Properties()
@@ -175,13 +160,10 @@ object JdbcDataSources extends ZDPDataSources{
 
 
   def getDriver(url: String): String = {
-
     url match {
       case u if u.toLowerCase.contains("jdbc:mysql") => "com.mysql.jdbc.Driver"
       case _ => ""
     }
-
-
   }
 
 }
